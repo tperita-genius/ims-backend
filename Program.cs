@@ -13,8 +13,8 @@ builder.Services.AddCors(options =>
 });
 
 // 2. Supabase 連線設定（請替換為你的實際資料）
-string supabaseUrl = "https://yyvgthfzjyntvvhnbjjw.supabase.co"; 
-string supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5dmd0aGZ6anludHZ2aG5iamp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MjMxMjgsImV4cCI6MjEwMjA5OTEyOH0.vlIysGwNcPScbX0-CGd3C-Pbsz1CVuKi4CI_O2BsB1E";
+string supabaseUrl = builder.Configuration["SUPABASE_API_URL"] ?? throw new InvalidOperationException("Missing SupabaseUrl in configuration.");
+string supabaseAnonKey = builder.Configuration["SUPABASE_ANON_PUBLIC"] ?? throw new InvalidOperationException("Missing supabaseAnonKey in configuration.");
 
 builder.Services.AddHttpClient("Supabase", client =>
 {
@@ -186,7 +186,7 @@ app.MapDelete("/api/products/{id}", async (string id, IHttpClientFactory httpCli
     return Results.Ok(new { message = "刪除成功", id });
 });
 
-app.Run("http://localhost:5035");
+app.Run();
 
 // 產品 Model
 public class Product
