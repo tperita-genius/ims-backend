@@ -25,6 +25,10 @@ x86/
 # ==========================================
 .vs/
 .vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
 # ==========================================
 # Node.js & Angular (前端專案專用)
