@@ -1,8 +1,8 @@
 {
   "Version": 1,
-  "Hash": "yGWF85H8n6Bv9UWuysLGRbGVx6DHX0ZXy+bXnaR0OVg=",
-  "Source": "MyBackend",
-  "BasePath": "_content/MyBackend",
+  "Hash": "rEfyIKvRQVXWoIOk55spxYQt+CuOwiZ2Dx+9PLLRn8I=",
+  "Source": "ims-backend",
+  "BasePath": "_content/ims-backend",
   "Mode": "Default",
   "ManifestType": "Build",
   "ReferencedProjectsConfiguration": [],

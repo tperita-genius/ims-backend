@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\ims-backend.props" />
+</Project>
