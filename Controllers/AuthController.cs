@@ -5,6 +5,7 @@ using BCrypt.Net;
 using ims_backend.DTOs;
 using ims_backend.Models;
 using ims_backend.Services;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ims_backend.Controllers;
 
@@ -87,6 +88,7 @@ public class AuthController : ControllerBase
     /// [POST] api/auth/login - 會員登入 (搭配 Supabase 查詢)
     /// </summary>
     [HttpPost("login")]
+    [EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         // 1. 依 Email 查詢 Supabase users 資料表

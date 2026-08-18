@@ -71,3 +71,7 @@ $RECYCLE.BIN/
 # ==========================================
 *.log
 .docker/
+
+# 忽略本機機密設定檔
+appsettings.Development.json
+appsettings.*.json

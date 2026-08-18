@@ -18,12 +18,12 @@ public class RegisterDto
     public string Password { get; set; } = string.Empty;
 }
 public record LoginDto(
-    [property: Required(ErrorMessage = "電子郵件為必填")]
-    [property: EmailAddress(ErrorMessage = "電子郵件格式不正確")]
+    [Required(ErrorMessage = "電子郵件為必填")]
+    [EmailAddress(ErrorMessage = "電子郵件格式不正確")]
     string Email,
 
-    [property: Required(ErrorMessage = "密碼為必填")]
-    [property: MinLength(6, ErrorMessage = "密碼長度至少需 6 碼")]
+    [Required(ErrorMessage = "密碼為必填")]
+    [MinLength(6, ErrorMessage = "密碼長度至少需 6 碼")]
     string Password
 );
 public record AuthResponseDto(string Token, string Email, string FullName, string Role);

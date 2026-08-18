@@ -3,7 +3,9 @@ using System.Text.Json.Serialization;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.RateLimiting;
 using ims_backend.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +20,7 @@ builder.Services.AddCors(options =>
 
 // 2. Supabase 連線設定
 string supabaseUrl = builder.Configuration["SUPABASE_API_URL"] ?? throw new InvalidOperationException("Missing SupabaseUrl in configuration.");
-string supabaseAnonKey = builder.Configuration["SUPABASE_ROLE_SECRET"] ?? throw new InvalidOperationException("Missing supabaseAnonKey in configuration.");
+string supabaseAnonKey = builder.Configuration["SUPABASE_SECRET_KEY"] ?? throw new InvalidOperationException("Missing supabaseAnonKey in configuration.");
 
 builder.Services.AddHttpClient("Supabase", client =>
 {
@@ -58,6 +60,15 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddScoped<IJwtService, JwtService>();
 
+builder.Services.AddRateLimiter(options => {
+    options.AddFixedWindowLimiter("LoginPolicy", opt => {
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.PermitLimit = 5; // 同一個 IP 一分鐘只能嘗試登入 5 次
+        opt.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 0;
+    });
+});
+
 var app = builder.Build();
 
 // -------------------------------------------------------------
@@ -68,9 +79,11 @@ app.UseRouting();
 // 1. 修正 CORS 名稱與上面 AddPolicy("AllowAngular") 對齊
 app.UseCors("AllowAngular"); 
 
+
 // 2. 身份驗證與授權 (必須放在 UseCors 後面、Map 前面)
 app.UseAuthentication(); 
 app.UseAuthorization();
+app.UseRateLimiter();
 
 // -------------------------------------------------------------
 // 轉發 Controller API (包含 /api/auth/register, /api/auth/login)
