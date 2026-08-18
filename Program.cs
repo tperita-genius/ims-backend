@@ -1,32 +1,85 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using ims_backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. 設定 CORS
+// 1. 設定 CORS 政策名稱為 AllowAngular
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular",
-        policy => policy.WithOrigins("http://localhost:4200", "https://ims-frontend-azure.vercel.app")
-                        .AllowAnyHeader()
-                        .AllowAnyMethod());
+    options.AddPolicy("AllowAngular", policy => 
+        policy.WithOrigins("http://localhost:4200", "https://ims-frontend-azure.vercel.app")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
 });
 
-// 2. Supabase 連線設定（請替換為你的實際資料）
+// 2. Supabase 連線設定
 string supabaseUrl = builder.Configuration["SUPABASE_API_URL"] ?? throw new InvalidOperationException("Missing SupabaseUrl in configuration.");
-string supabaseAnonKey = builder.Configuration["SUPABASE_ANON_PUBLIC"] ?? throw new InvalidOperationException("Missing supabaseAnonKey in configuration.");
+string supabaseAnonKey = builder.Configuration["SUPABASE_ROLE_SECRET"] ?? throw new InvalidOperationException("Missing supabaseAnonKey in configuration.");
 
 builder.Services.AddHttpClient("Supabase", client =>
 {
     client.BaseAddress = new Uri($"{supabaseUrl.TrimEnd('/')}/rest/v1/");
     client.DefaultRequestHeaders.Add("apikey", supabaseAnonKey);
     client.DefaultRequestHeaders.Add("Authorization", $"Bearer {supabaseAnonKey}");
-    // 讓 Supabase 回傳新增/更新後的完整物件資料
     client.DefaultRequestHeaders.Add("Prefer", "return=representation");
 });
 
+// 3. 讀取與註冊 JWT 設定
+var jwtKey = builder.Configuration["Jwt:Key"] 
+    ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "ims-backend";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "ims-frontend";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+builder.Services.AddControllers();
+builder.Services.AddScoped<IJwtService, JwtService>();
+
 var app = builder.Build();
-app.UseCors("AllowAngular");
+
+// -------------------------------------------------------------
+// 中間件 (Middleware) 順序設定區：務必放在所有 Map API 之前！
+// -------------------------------------------------------------
+app.UseRouting();
+
+// 1. 修正 CORS 名稱與上面 AddPolicy("AllowAngular") 對齊
+app.UseCors("AllowAngular"); 
+
+// 2. 身份驗證與授權 (必須放在 UseCors 後面、Map 前面)
+app.UseAuthentication(); 
+app.UseAuthorization();
+
+// -------------------------------------------------------------
+// 轉發 Controller API (包含 /api/auth/register, /api/auth/login)
+// -------------------------------------------------------------
+app.MapControllers();
+
+// -------------------------------------------------------------
+// Minimal APIs (產品 CRUD 端點)
+// -------------------------------------------------------------
 
 // GET: 取得產品清單
 app.MapGet("/api/products", async (
@@ -40,7 +93,6 @@ app.MapGet("/api/products", async (
 
     page = Math.Max(1, page);
     limit = Math.Clamp(limit, 1, 100); 
-
     int offset = (page - 1) * limit;
 
     var queryParts = new List<string>
@@ -63,7 +115,6 @@ app.MapGet("/api/products", async (
     if (!string.IsNullOrWhiteSpace(search))
     {
         var safeSearch = search.Replace("(", "").Replace(")", "").Replace(",", "").Trim();
-
         if (!string.IsNullOrEmpty(safeSearch))
         {
             var encodedSearch = Uri.EscapeDataString(safeSearch);
@@ -110,7 +161,6 @@ app.MapPost("/api/products", async (Product dto, IHttpClientFactory httpClientFa
 {
     var client = httpClientFactory.CreateClient("Supabase");
     
-    // 忽略前端傳入的 Id，由資料庫自動產生
     var newProduct = new 
     {
         title = dto.Title,
@@ -133,7 +183,6 @@ app.MapPut("/api/products/{id}", async (string id, Product dto, IHttpClientFacto
 {
     var client = httpClientFactory.CreateClient("Supabase");
     
-    // 建立要更新的欄位 JSON 物件
     var updateProduct = new 
     {
         title = dto.Title,
@@ -142,7 +191,6 @@ app.MapPut("/api/products/{id}", async (string id, Product dto, IHttpClientFacto
         is_active = dto.IsActive
     };
 
-    // 💡 建立單次請求標頭，明確要求 Supabase 回傳修改後的完整資料 (return=representation)
     var request = new HttpRequestMessage(new HttpMethod("PATCH"), $"products?id=eq.{id}")
     {
         Content = JsonContent.Create(updateProduct)
@@ -159,10 +207,8 @@ app.MapPut("/api/products/{id}", async (string id, Product dto, IHttpClientFacto
 
     var updatedProducts = await response.Content.ReadFromJsonAsync<List<Product>>();
 
-    // 💡【關鍵防呆修正】檢查陣列是否為空，避免 IndexOutOfRangeException / ArgumentOutOfRangeException 崩潰
     if (updatedProducts == null || updatedProducts.Count == 0)
     {
-        // 若找不到該 ID，回傳 404 Not Found 或直接回傳傳入的 dto
         return Results.NotFound($"找不到 ID 為 '{id}' 的產品，或是資料未進行變更");
     }
 
@@ -173,8 +219,6 @@ app.MapPut("/api/products/{id}", async (string id, Product dto, IHttpClientFacto
 app.MapDelete("/api/products/{id}", async (string id, IHttpClientFactory httpClientFactory) =>
 {
     var client = httpClientFactory.CreateClient("Supabase");
-
-    // 發送 DELETE 請求給 Supabase REST API (過濾條件：id 等於傳入的 id)
     var response = await client.DeleteAsync($"products?id=eq.{id}");
 
     if (!response.IsSuccessStatusCode)

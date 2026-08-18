@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ims-backend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+78716a41d5b74db76955aeda344a12f1ae93e046")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bbf9a848f67fe2786b59aa80c42bef83a0c5b55e")]
 [assembly: System.Reflection.AssemblyProductAttribute("ims-backend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ims-backend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
