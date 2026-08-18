@@ -1,0 +1,51 @@
+name: Backend CI/CD Pipeline
+
+# 當 main 或 master 分支有 push 或 PR 時觸發
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  # ------------------------------------------------------------
+  # Job 1: 測試與建置檢查 (CI)
+  # ------------------------------------------------------------
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 1. 下載儲存庫程式碼 (Checkout)
+      uses: actions/checkout@v4
+
+    - name: 2. 設定 .NET 8 SDK 環境
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: 3. 還原 NuGet 套件 (Restore)
+      run: dotnet restore
+
+    - name: 4. 建置專案 (Build)
+      run: dotnet build --no-restore --configuration Release
+
+    - name: 5. 執行自動化測試 (Test)
+      # 關鍵：若測試失敗，GitHub Actions 會在此步驟直接拋出錯誤並中斷，不會走到下一步部署
+      run: dotnet test --no-build --configuration Release --verbosity normal
+
+  # ------------------------------------------------------------
+  # Job 2: 部署至 Render (CD)
+  # ------------------------------------------------------------
+  deploy:
+    # 關鍵：必須等 build-and-test 完全 PASS (綠燈) 才會執行此 Job
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    # 僅在 push 到 main 分支時才執行部署 (避免 PR 測試通過就誤部署)
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+    - name: 觸發 Render Deploy Hook
+      run: |
+        echo "測試全部通過，正在通知 Render 進行部署..."
+        curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        echo "已成功發送部署請求！"

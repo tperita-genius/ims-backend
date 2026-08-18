@@ -4,6 +4,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+  <!-- 加入這段：讓主專案編譯時排除測試專案目錄 -->
+  <ItemGroup>
+    <Compile Remove="ims-backend.Tests\**" />
+    <Content Remove="ims-backend.Tests\**" />
+    <EmbeddedResource Remove="ims-backend.Tests\**" />
+    <None Remove="ims-backend.Tests\**" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.13" />

@@ -232,6 +232,8 @@ app.MapDelete("/api/products/{id}", async (string id, IHttpClientFactory httpCli
 
 app.Run();
 
+public partial class Program {}
+
 // 產品 Model
 public class Product
 {
